@@ -1,0 +1,87 @@
+blueprint:
+  name: Automatic OS Updates with Version Control
+  description: Automatically install minor and/or major updates of Home Assistant OS at a chosen time
+  domain: automation
+  input:
+    update_entity:
+      name: Update Entity
+      description: The update entity you want to monitor (default is Home Assistant OS)
+      default: update.home_assistant_operating_system_update
+      selector:
+        entity:
+          domain: update
+    update_time:
+      name: Update Time
+      description: Time when updates are checked and installed
+      default: "04:00:00"
+      selector:
+        time: {}
+    install_minor:
+      name: Install Minor Updates
+      description: Automatically install minor updates (e.g. 17.0 → 17.1)
+      default: true
+      selector:
+        boolean: {}
+    install_major:
+      name: Install Major Updates
+      description: Automatically install major updates (e.g. 17.x → 18.0)
+      default: false
+      selector:
+        boolean: {}
+
+triggers:
+  - platform: time
+    at: !input update_time
+
+conditions:
+  - condition: state
+    entity_id: !input update_entity
+    state: "on"
+
+actions:
+  - variables:
+      update_entity: !input update_entity
+      install_minor: !input install_minor
+      install_major: !input install_major
+      installed_version: "{{ state_attr(update_entity, 'installed_version') }}"
+      latest_version: "{{ state_attr(update_entity, 'latest_version') }}"
+      is_major_update: "{{ installed_version.split('.')[0] != latest_version.split('.')[0] }}"
+  - choose:
+      # Scenario 1: Major update available
+      - conditions:
+          - condition: template
+            value_template: "{{ is_major_update }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ install_major }}"
+                sequence:
+                  - action: update.install
+                    target:
+                      entity_id: "{{ update_entity }}"
+            default:
+              - action: persistent_notification.create
+                data:
+                  title: "Major OS Update Available"
+                  message: "Major OS update available: {{ installed_version }} → {{ latest_version }}"
+                  notification_id: os_major_update
+      # Scenario 2: Minor update available
+      - conditions:
+          - condition: template
+            value_template: "{{ not is_major_update }}"
+        sequence:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ install_minor }}"
+                sequence:
+                  - action: update.install
+                    target:
+                      entity_id: "{{ update_entity }}"
+            default:
+              - action: persistent_notification.create
+                data:
+                  title: "Minor OS Update Available"
+                  message: "Minor OS update available: {{ installed_version }} → {{ latest_version }}"
+                  notification_id: os_minor_update
