@@ -1,7 +1,11 @@
 blueprint:
   name: Automatic OS Updates with Version Control
-  description: Automatically install minor and/or major updates of Home Assistant OS at a chosen time
+  description: |
+    Automatically install minor and/or major updates of Home Assistant OS at a chosen time.
+    
+    Version: 0.1.0
   domain: automation
+  source_url: https://github.com/filmgarage/Ha_blueprints/blob/main/system/update_os.yaml
   input:
     update_entity:
       name: Update Entity
